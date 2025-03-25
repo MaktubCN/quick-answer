@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Highlight, Prism } from 'prism-react-renderer';
@@ -15,7 +15,15 @@ interface ChatMessage {
   timestamp: number;
 }
 
-export default function Home() {
+function LoadingFallback() {
+  return (
+    <div className="flex justify-center items-center min-h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+    </div>
+  );
+}
+
+function ChatComponent() {
   const searchParams = useSearchParams();
   const API_CONFIG = getApiConfig(new URLSearchParams(searchParams.toString()));
   const [isRecording, setIsRecording] = useState(false);
@@ -198,86 +206,142 @@ export default function Home() {
           >
             <svg
               className={`w-5 h-5 mr-2 ${isRecording ? 'animate-pulse' : ''}`}
-              fill="currentColor"
               viewBox="0 0 24 24"
+              fill="currentColor"
             >
-              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+              {isRecording ? (
+                <path d="M5.5 5.5A.5.5 0 016 6v12a.5.5 0 01-.5.5h-1a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5h1zm3 0a.5.5 0 01.5.5v12a.5.5 0 01-.5.5h-1a.5.5 0 01-.5-.5V6a.5.5 0 01.5-.5h1z"/>
+              ) : (
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              )}
             </svg>
             {isRecording ? '停止录音' : '开始录音'}
           </button>
         </div>
 
         {/* Current Conversation */}
-        {(currentTranscription || currentAnswer) && (
-          <div className="space-y-6 mb-8">
-            {/* Transcription */}
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-sm font-medium text-gray-400 mb-2">当前录音转文字</h2>
-              <p className="text-gray-200">
-                {currentTranscription || '等待录音...'}
-              </p>
+        <div className="mb-8">
+          {currentTranscription && (
+            <div className="mb-4 p-4 bg-gray-800 rounded-lg">
+              <h3 className="text-gray-400 mb-2">你说：</h3>
+              <p className="text-white">{currentTranscription}</p>
             </div>
-
-            {/* AI Response */}
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-sm font-medium text-gray-400 mb-2">AI回答</h2>
-              <div 
-                ref={answerRef}
-                className="prose prose-invert max-w-none text-gray-200"
-              >
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {isLoading ? '正在思考...' : currentAnswer || '等待回答...'}
-                </ReactMarkdown>
-              </div>
+          )}
+          {(isLoading || currentAnswer) && (
+            <div 
+              ref={answerRef}
+              className="p-4 bg-gray-800 rounded-lg overflow-auto"
+              style={{ maxHeight: '400px' }}
+            >
+              <h3 className="text-gray-400 mb-2">AI 回答：</h3>
+              {isLoading && !isStreaming && (
+                <div className="flex items-center text-white">
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
+                  处理中...
+                </div>
+              )}
+              {currentAnswer && (
+                <div className="text-white prose prose-invert max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ node, inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline ? (
+                          <Highlight
+                            code={String(children).replace(/\n$/, '')}
+                            language={match?.[1] || ''}
+                            theme={themes.dracula}
+                          >
+                            {({ className, style, tokens, getLineProps, getTokenProps }) => (
+                              <pre className={`${className} p-4 rounded overflow-auto`} style={style}>
+                                {tokens.map((line, i) => (
+                                  <div key={i} {...getLineProps({ line })}>
+                                    {line.map((token, key) => (
+                                      <span key={key} {...getTokenProps({ token })} />
+                                    ))}
+                                  </div>
+                                ))}
+                              </pre>
+                            )}
+                          </Highlight>
+                        ) : (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {currentAnswer}
+                  </ReactMarkdown>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Chat History */}
-        {chatHistory.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-lg font-medium text-white px-2">对话记录</h2>
-            {chatHistory.map((message) => (
-              <div key={message.id} className="bg-gray-800 rounded-lg">
-                <div className="p-4 space-y-4">
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-sm font-medium text-gray-400">问题</h3>
-                      <span className="text-sm text-gray-500">
-                        {new Date(message.timestamp).toLocaleString('zh-CN', {
-                          month: 'numeric',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-gray-200">{message.transcription}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-400 mb-2">回答</h3>
-                    <div className="prose prose-invert max-w-none text-gray-200">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {message.answer}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
+        <div className="space-y-6">
+          {chatHistory.map((message) => (
+            <div key={message.id} className="border-t border-gray-800 pt-6">
+              <div className="mb-4 p-4 bg-gray-800 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-gray-400">你说：</h3>
+                  <span className="text-gray-500 text-sm">{formatTime(message.timestamp)}</span>
+                </div>
+                <p className="text-white">{message.transcription}</p>
+              </div>
+              <div className="p-4 bg-gray-800 rounded-lg">
+                <h3 className="text-gray-400 mb-2">AI 回答：</h3>
+                <div className="text-white prose prose-invert max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ node, inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline ? (
+                          <Highlight
+                            code={String(children).replace(/\n$/, '')}
+                            language={match?.[1] || ''}
+                            theme={themes.dracula}
+                          >
+                            {({ className, style, tokens, getLineProps, getTokenProps }) => (
+                              <pre className={`${className} p-4 rounded overflow-auto`} style={style}>
+                                {tokens.map((line, i) => (
+                                  <div key={i} {...getLineProps({ line })}>
+                                    {line.map((token, key) => (
+                                      <span key={key} {...getTokenProps({ token })} />
+                                    ))}
+                                  </div>
+                                ))}
+                              </pre>
+                            )}
+                          </Highlight>
+                        ) : (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  >
+                    {message.answer}
+                  </ReactMarkdown>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-gray-800 mt-8">
-        <div className="max-w-3xl mx-auto px-4 py-6">
-          <p className="text-center text-sm text-gray-500">
-            使用 Next.js, Tailwind CSS 和 OpenAI API 构建
-          </p>
+            </div>
+          ))}
         </div>
-      </footer>
+      </main>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ChatComponent />
+    </Suspense>
   );
 }
