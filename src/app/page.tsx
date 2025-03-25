@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import Highlight, { defaultProps } from 'prism-react-renderer';
+import { Highlight, Prism } from 'prism-react-renderer';
 import { themes } from 'prism-react-renderer';
 import { getApiConfig } from '@/config/api';
 import { useSearchParams } from 'next/navigation';
