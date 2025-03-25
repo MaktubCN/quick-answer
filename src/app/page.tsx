@@ -17,7 +17,7 @@ interface ChatMessage {
 
 export default function Home() {
   const searchParams = useSearchParams();
-  const API_CONFIG = getApiConfig(searchParams);
+  const API_CONFIG = getApiConfig(new URLSearchParams(searchParams.toString()));
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [isLoading, setIsLoading] = useState(false);

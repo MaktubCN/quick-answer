@@ -1,4 +1,4 @@
-export const getApiConfig = (searchParams: URLSearchParams = new URLSearchParams()) => {
+export const getApiConfig = (searchParams: URLSearchParams | ReadonlyURLSearchParams = new URLSearchParams()) => {
   return {
     BASE_URL: searchParams.get('base_url') || '',
     API_KEY: searchParams.get('api_key') || '',
