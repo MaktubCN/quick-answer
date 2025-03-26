@@ -9,6 +9,8 @@ import { themes } from 'prism-react-renderer';
 import { getApiConfig } from '@/config/api';
 import { useSearchParams } from 'next/navigation';
 
+import { ComponentProps } from 'react';
+
 interface ChatMessage {
   id: string;
   transcription: string;
@@ -246,7 +248,7 @@ function ChatComponent() {
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      code: ({ node, inline, className, children, ...props }: Components['code']) => {
+                      code: ({ node, inline, className, children, ...props }: ComponentProps<typeof ReactMarkdown.components.code>) => {
                         const match = /language-(\w+)/.exec(className || '');
                         return !inline ? (
                           <Highlight
