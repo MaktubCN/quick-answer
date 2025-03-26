@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, Suspense } from 'react';
 import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Highlight, Prism } from 'prism-react-renderer';
 import { themes } from 'prism-react-renderer';
@@ -245,7 +246,7 @@ function ChatComponent() {
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      code({ node, inline, className, children, ...props }) {
+                      code: ({ node, inline, className, children, ...props }: Components['code']) => {
                         const match = /language-(\w+)/.exec(className || '');
                         return !inline ? (
                           <Highlight
@@ -298,7 +299,7 @@ function ChatComponent() {
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      code({ node, inline, className, children, ...props }) {
+                      code: ({ node, inline, className, children, ...props }: Components['code']) => {
                         const match = /language-(\w+)/.exec(className || '');
                         return !inline ? (
                           <Highlight
